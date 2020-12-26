@@ -1,7 +1,13 @@
+import re
+import copy
 _t = {}
 _sides = {}
 _set = set()
-with open("test.txt") as f:
+
+monster_re = re.compile("#....##....##....###")
+monster_re2 = re.compile(".#(..#){5}...")
+
+with open("day20.txt") as f:
     contents = f.read()
 _s = contents.split("\n\n")
 
@@ -50,6 +56,22 @@ def which_sides_match(arr1,arr2):
         for func2 in sides:
             if "".join(func(arr1)) == "".join(func2(arr2)):
                 return(func.__name__,str(func2.__name__))
+            
+def find_monsters(arr):
+#     print("Finding Monsters")
+    counter = 0
+    #aprint(arr)
+    for v,x in enumerate(arr):
+        matches = monster_re.findall("".join(x))
+#         if len(matches) > 0:
+#             aprint(arr)
+        for match in matches:
+#             print(v,match,"".join(x).index(match))
+            sidx = "".join(x).index(match)
+#             print(arr[v-1][sidx+18])
+            if arr[v-1][sidx+18] == "#" and len(monster_re2.findall("".join(arr[v+1][sidx:sidx+20]))) > 0:
+                counter+=1
+    return counter
 
 for tile in _s:
     #print(tile)
@@ -69,16 +91,13 @@ for x in _t.keys():
 for key,v in _t.items():
     for key2,v2 in _t.items():
         if key != key2:
-            temp = v2.copy()
-            for x in range(3):
-                check_all_sides(key,key2,v.copy(),temp.copy())
+            temp = copy.deepcopy(v2)
+            for x in range(4):
+                check_all_sides(key,key2,copy.deepcopy(v),copy.deepcopy(temp))
                 temp = rotater(temp)
             #back to vertical
-            temp = rotater(temp)
-            temp = fliph(temp)
-            check_all_sides(key,key2,v.copy(),temp.copy())
-            temp = flipv(temp)
-            check_all_sides(key,key2,v.copy(),temp.copy())
+            check_all_sides(key,key2,copy.deepcopy(v),copy.deepcopy(fliph(temp)))
+            check_all_sides(key,key2,copy.deepcopy(v),copy.deepcopy(flipv(temp)))
 
 for x in _set:
     _sides[x[0]]+=1
@@ -95,7 +114,7 @@ for number in range(_l):
         _big_picture[number].append([])
         _bp_num[number].append([])
 
-print(_big_picture)
+# print(_big_picture)
 #build a picture  
 
 start_corner = 0
@@ -115,8 +134,8 @@ print(lrtiles)
 print(start_corner)
 
 #start trying to orient the start corner
-stemp = _t[start_corner].copy()
-temp = _t[lrtiles[0]].copy()
+stemp = copy.deepcopy(_t[start_corner])
+temp = copy.deepcopy(_t[lrtiles[0]])
 for y in range(3):
     _w = which_sides_match(stemp,temp)
     if _w != None:
@@ -145,15 +164,157 @@ elif _w[1] == '_top':
     #aprint(stemp)
     #aprint(temp)
 
-_big_picture[0][0] = stemp.copy()
-_big_picture[0][1] = temp.copy()
+_big_picture[0][0] = copy.deepcopy(stemp)
+_big_picture[0][1] = copy.deepcopy(temp)
 _bp_num[0][0] = start_corner
 _bp_num[0][1] = lrtiles[0]
 
+used_nums = set()
+used_nums.add(start_corner)
+used_nums.add(lrtiles[0])
+#solve the first row
+#print("solve for the first row")
+for x,v in enumerate(_big_picture[0]):
+    if len(v) == 0:
+        possible_tiles = []
+        for z in _set:
+            if _bp_num[0][x-1] in z:
+                if z[0] == _bp_num[0][x-1]:
+                    possible_tiles.append(z[1])
+                else:
+                    possible_tiles.append(z[0])
+        
+        possible_tiles = set(possible_tiles).difference(used_nums)
+        #print("possible tiles")
+        #print(possible_tiles)
+        if 1063 in possible_tiles:
+            pass
+        for item in possible_tiles:
+            search = False
+            temp = copy.deepcopy(_t[item])
+            for y in range(4):
+                _w = which_sides_match(_big_picture[0][x-1],temp)
+                if _w == ('_right','_left'):
+                    search = True
+                    break
+                temp = rotater(temp)
+            if search:
+                break
+            if _w !=  ('_right','_left'):
+                temp = copy.deepcopy(fliph(temp))
+                _w = which_sides_match(_big_picture[0][x-1],temp)
+            if _w != ('_right','_left'):
+                temp = copy.deepcopy(flipv(fliph(temp)))
+                _w = which_sides_match(_big_picture[0][x-1],temp)
+            if _w != ('_right','_left'):
+                temp = copy.deepcopy(fliph(temp))
+                _w = which_sides_match(_big_picture[0][x-1],temp)
+            
+            if _w == ('_right','_left'):
+                break
+        
+        #aprint(temp)
+        _bp_num[0][x] = item
+        _big_picture[0][x] = copy.deepcopy(temp)
+        used_nums.add(item)
+                
+
+
+print(_bp_num)
+print(_big_picture)
+#fix all remaining rows
+#print("solve remaining rows")
+for line_num in range(1,len(_big_picture)):
+    for num,item in enumerate(_big_picture[line_num]):
+        if len(item) == 0:
+            possible_tiles = []
+            for z in _set:
+                if _bp_num[line_num-1][num] in z:
+                    if z[0] == _bp_num[line_num-1][num]:
+                        possible_tiles.append(z[1])
+                    else:
+                        possible_tiles.append(z[0])
+            print(possible_tiles)
+            possible_tiles = set(possible_tiles).difference(used_nums)
+            print("possible tiles")
+            print(possible_tiles)
+            for item in possible_tiles:
+                temp = copy.deepcopy(_t[item])
+                search = False
+                for y in range(4):
+                    _w = which_sides_match(_big_picture[line_num-1][num],temp)
+                    if _w == ('_bot','_top'):
+                        search = True
+                        break
+                    temp = rotater(temp)
+                if search:
+                    break    
+                if _w !=  ('_bot','_top'):
+                    temp = copy.deepcopy(fliph(temp))
+                    _w = which_sides_match(_big_picture[line_num-1][num],temp)
+                if _w != ('_bot','_top'):
+                    temp = copy.deepcopy(flipv(fliph(temp)))
+                    _w = which_sides_match(_big_picture[line_num-1][num],flipv(temp))
+                if _w != ('_right','_left'):
+                    temp = copy.deepcopy(fliph(temp))
+                    _w = which_sides_match(_big_picture[line_num-1][num],temp)
+                
+                if _w == ('_bot','_top'):
+                    break
+            #print(item)
+            #print(type(item))
+            #print(item)
+            #aprint(temp)
+            _bp_num[line_num][num] = item
+            _big_picture[line_num][num] = copy.deepcopy(temp)
+            used_nums.add(item)
+
+
+print(_bp_num)
+#print("print the big picture")
 for line,row in enumerate(_big_picture):
     #print(line,row)
     for column, tile in enumerate(row):
-        print(column)
-        aprint(tile)
+        #print(_bp_num[line][column])
+        #aprint(tile)
+        #aprint([x[1:-1] for x in tile[1:-1]])
+        _big_picture[line][column] = [x[1:-1] for x in tile[1:-1]]
+        
 
-print(_bp_num)
+
+total_picture = []
+for line,row in enumerate(_big_picture):
+    for z in range(len(row[0])):
+        line = ""
+        for column in row:
+            line = line+"".join(column[z])
+        total_picture.append(list(line))
+
+#sea monster image
+#aprint(rotater(rotater(rotater(total_picture))))
+#test image
+#aprint(fliph(total_picture))
+temp =copy.deepcopy(total_picture)
+found_monsters = 0
+for y in range(4):
+    found_monsters = find_monsters(temp)
+    if found_monsters > 0:
+        break
+    temp = rotater(temp)
+if found_monsters == 0:
+    temp = fliph(temp)
+    found_monsters = find_monsters(temp)
+if found_monsters == 0:
+    temp = flipv(temp)
+    found_monsters = find_monsters(temp)
+
+
+count = 0
+for x in total_picture:
+    count += x.count("#")
+
+#print(count)
+print(found_monsters)
+print(count)
+
+
